@@ -30,6 +30,8 @@ public final class MobileRouteResolver: @unchecked Sendable {
     /// captured when its refresh task was created.
     private var cacheGeneration = 0
 
+    public init() {}
+
     public func routes(
         port: Int,
         now: Date = Date(),
