@@ -1,0 +1,54 @@
+name: build-mac-unsigned
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          ./scripts/install-rust-ci.sh
+          ./scripts/install-zig-ci.sh
+          ./scripts/download-prebuilt-ghosttykit.sh
+
+      - name: Build (arm64 only, unsigned)
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.cargo/bin:$PATH"
+          CMUX_SKIP_ZIG_BUILD=1 xcodebuild -scheme cmux -configuration Release \
+            -derivedDataPath build \
+            -destination 'generic/platform=macOS' \
+            -clonedSourcePackagesDirPath .spm-cache \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=NO \
+            VALID_ARCHS=arm64 \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          cd build/Build/Products/Release
+          ls -la
+          tar -czf "$RUNNER_TEMP/cmux-pr13560-arm64.tar.gz" cmux.app
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cmux-pr13560-arm64
+          if-no-files-found: warn
+          path: ${{ runner.temp }}/cmux-pr13560-arm64.tar.gz
